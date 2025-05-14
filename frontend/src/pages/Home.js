@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Home.css';
+import { ethers } from 'ethers';
 
 // 模擬數據 - 實際項目中這些會從API獲取
 const MOCK_FEATURED_PROPERTIES = [
@@ -46,7 +47,6 @@ const MOCK_PLATFORM_STATS = {
   totalProperties: "21"
 };
 
-// 簡單的PropertyCard組件 (直接內置，而不是引入)
 const PropertyCard = ({ property }) => {
   const navigate = useNavigate();
   
@@ -90,7 +90,6 @@ const PropertyCard = ({ property }) => {
   );
 };
 
-// 簡單的載入組件
 const LoadingSpinner = () => (
   <div className="loading-spinner">
     <div className="spinner"></div>
@@ -98,11 +97,8 @@ const LoadingSpinner = () => (
   </div>
 );
 
-// 格式化工具
 const formatCurrency = (value) => {
-  // 移除非數字字符
   const numericValue = value.toString().replace(/[^0-9]/g, '');
-  // 轉換為數字並格式化
   return new Intl.NumberFormat('zh-TW', {
     style: 'currency',
     currency: 'TWD',
@@ -118,12 +114,20 @@ export default function Home() {
   const [error, setError] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [walletConnected, setWalletConnected] = useState(false);
+  
+  // 表單狀態
+  const [tokenName, setTokenName] = useState('');
+  const [tokenSymbol, setTokenSymbol] = useState('');
+  const [propertyName, setPropertyName] = useState('');
+  const [initialSupply, setInitialSupply] = useState('');
+  // 移除 eslint 警告: 未使用變數
+  // const [provider, setProvider] = useState(null);
+  // const [contract, setContract] = useState(null);
+  const [contract, setContract] = useState(null);
 
   useEffect(() => {
-    // 模擬API調用
     const fetchData = async () => {
       try {
-        // 模擬網絡延遲
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         setFeaturedProperties(MOCK_FEATURED_PROPERTIES);
@@ -152,14 +156,52 @@ export default function Home() {
     navigate('/marketplace');
   };
 
-  const handleConnectWallet = () => {
-    // 模擬錢包連接
-    setWalletConnected(!walletConnected);
+  const handleConnectWallet = async () => {
+    try {
+      // 在真實應用程式中，這裡會使用實際的 Web3 提供者
+      // 這裡只是示範
+      if (window.ethereum) {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        setWalletConnected(true);
+        
+        // 在實際專案中，你會在這裡設置合約實例
+        // const contractAddress = "你的智能合約地址";
+        // const contractABI = [...]; // 你的合約 ABI
+        // const signer = await provider.getSigner();
+        // const contractInstance = new ethers.Contract(contractAddress, contractABI, signer);
+        // setContract(contractInstance);
+      } else {
+        alert("請安裝 MetaMask 或其他 Web3 錢包擴充功能");
+      }
+    } catch (error) {
+      console.error("錢包連接錯誤", error);
+      setWalletConnected(false);
+    }
   };
 
   const handleLogin = () => {
-    // 模擬登入
     setIsAuthenticated(!isAuthenticated);
+  };
+
+  const handleCreateToken = async () => {
+    if (contract) {
+      try {
+        // ethers v6 不再使用 utils，而是直接提供全局函數
+        const tx = await contract.createPropertyToken(
+          tokenName,
+          tokenSymbol,
+          propertyName,
+          ethers.parseUnits(initialSupply, 18)  // 修正: 使用 ethers.parseUnits 而非 ethers.utils.parseUnits
+        );
+        await tx.wait();
+        console.log("Property Token Created successfully");
+      } catch (error) {
+        console.error("Error creating property token:", error);
+      }
+    } else {
+      alert("請先連接錢包");
+    }
   };
 
   if (loading) {
@@ -271,6 +313,44 @@ export default function Home() {
         )}
       </section>
 
+      {/* 新增房地產表單區塊 */}
+      <section className="create-property-section">
+        <div className="section-header">
+          <h2>新增房地產項目</h2>
+        </div>
+        <div className="create-property-form">
+          <input 
+            type="text" 
+            placeholder="Token 名稱"
+            value={tokenName}
+            onChange={(e) => setTokenName(e.target.value)}
+          />
+          <input 
+            type="text" 
+            placeholder="Token 符號"
+            value={tokenSymbol}
+            onChange={(e) => setTokenSymbol(e.target.value)}
+          />
+          <input 
+            type="text" 
+            placeholder="房產名稱"
+            value={propertyName}
+            onChange={(e) => setPropertyName(e.target.value)}
+          />
+          <input 
+            type="number" 
+            placeholder="初始供應量"
+            value={initialSupply}
+            onChange={(e) => setInitialSupply(e.target.value)}
+          />
+          <button 
+            onClick={walletConnected ? handleCreateToken : handleConnectWallet}
+          >
+            {walletConnected ? '創建代幣' : '請先連接錢包'}
+          </button>
+        </div>
+      </section>
+
       <section className="how-it-works">
         <div className="section-header">
           <h2>如何投資房地產代幣</h2>
@@ -296,40 +376,6 @@ export default function Home() {
             <h3>收取收益</h3>
             <p>定期獲得租金收入，享受資產增值</p>
           </div>
-        </div>
-      </section>
-
-      <section className="benefits-section">
-        <div className="section-header">
-          <h2>代幣化房地產的優勢</h2>
-        </div>
-        <div className="benefits-grid">
-          <div className="benefit-card">
-            <h3>降低門檻</h3>
-            <p>小額投資即可參與高價值房地產市場</p>
-          </div>
-          <div className="benefit-card">
-            <h3>流動性高</h3>
-            <p>代幣可自由交易，無需等待房產出售</p>
-          </div>
-          <div className="benefit-card">
-            <h3>透明公開</h3>
-            <p>區塊鏈技術確保所有交易記錄公開透明</p>
-          </div>
-          <div className="benefit-card">
-            <h3>多元分散</h3>
-            <p>可投資多種不同地區、類型的房地產</p>
-          </div>
-        </div>
-      </section>
-
-      <section className="cta-section">
-        <div className="cta-content">
-          <h2>開始您的房地產投資之旅</h2>
-          <p>現在就加入我們，以更智能的方式投資房地產</p>
-          <button className="primary-button" onClick={handleStartInvesting}>
-            立即開始
-          </button>
         </div>
       </section>
     </div>
