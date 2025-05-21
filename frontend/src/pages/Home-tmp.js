@@ -2,7 +2,73 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Home.css';
 import { ethers } from 'ethers';
-import factoryConfig from '../contracts/PropertyTokenFactory.json';
+import factoryConfig from '../contracts/PropertyTokenFactory.json'; // 引入之前匯出的合約設定
+
+// 模擬數據 - 實際項目中這些會從API獲取
+const MOCK_FEATURED_PROPERTIES = [
+  {
+    id: 1,
+    title: "台北信義區豪華公寓",
+    location: "台北市信義區",
+    price: "1,000,000",
+    tokenPrice: "1,000",
+    totalTokens: 1000,
+    availableTokens: 650,
+    imageUrl: "/assets/property1.jpg",
+    annualReturn: "8.5%",
+  },
+  // 其他模擬數據...
+];
+
+const MOCK_PLATFORM_STATS = {
+  totalInvestment: "32,500,000",
+  totalUsers: "1,245",
+  completedTransactions: "4,876",
+  totalProperties: "21"
+};
+
+const PropertyCard = ({ property }) => {
+  const navigate = useNavigate();
+  
+  const handlePropertyClick = () => {
+    navigate(`/property/${property.id}`);
+  };
+  
+  return (
+    <div className="property-card" onClick={handlePropertyClick}>
+      <div className="property-image">
+        <img src={property.imageUrl} alt={property.title} />
+        <div className="property-return">
+          <span>{property.annualReturn} 年化收益</span>
+        </div>
+      </div>
+      <div className="property-content">
+        <h3>{property.title}</h3>
+        <p className="property-location">{property.location}</p>
+        <div className="property-details">
+          <div className="property-price">
+            <p className="detail-label">房產總價</p>
+            <p className="detail-value">${property.price}</p>
+          </div>
+          <div className="property-token">
+            <p className="detail-label">代幣價格</p>
+            <p className="detail-value">${property.tokenPrice}</p>
+          </div>
+        </div>
+        <div className="property-progress">
+          <div className="progress-bar">
+            <div 
+              className="progress-filled" 
+              style={{ width: `${(property.totalTokens - property.availableTokens) / property.totalTokens * 100}%` }}
+            ></div>
+          </div>
+          <p className="progress-text">{property.availableTokens} / {property.totalTokens} 代幣可用</p>
+        </div>
+        <button className="property-button">查看詳情</button>
+      </div>
+    </div>
+  );
+};
 
 // 新增一個顯示已創建代幣的組件
 const CreatedTokenCard = ({ token }) => {
@@ -35,11 +101,22 @@ const LoadingSpinner = () => (
   </div>
 );
 
+const formatCurrency = (value) => {
+  const numericValue = value.toString().replace(/[^0-9]/g, '');
+  return new Intl.NumberFormat('zh-TW', {
+    style: 'currency',
+    currency: 'TWD',
+    maximumFractionDigits: 0
+  }).format(Number(numericValue));
+};
+
 export default function Home() {
   const navigate = useNavigate();
-
+  const [featuredProperties, setFeaturedProperties] = useState([]);
+  const [platformStats, setPlatformStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [walletConnected, setWalletConnected] = useState(false);
   
   // 表單狀態
@@ -61,6 +138,8 @@ export default function Home() {
       try {
         await new Promise(resolve => setTimeout(resolve, 1000));
         
+        setFeaturedProperties(MOCK_FEATURED_PROPERTIES);
+        setPlatformStats(MOCK_PLATFORM_STATS);
         setError(null);
       } catch (err) {
         console.error('Error fetching data:', err);
@@ -143,6 +222,18 @@ export default function Home() {
     }
   }, [factoryContract]);
 
+  const handleStartInvesting = () => {
+    if (isAuthenticated) {
+      navigate('/marketplace');
+    } else {
+      navigate('/login');
+    }
+  };
+
+  const handleViewAllProperties = () => {
+    navigate('/marketplace');
+  };
+
   const handleConnectWallet = async () => {
     try {
       if (window.ethereum) {
@@ -168,7 +259,21 @@ export default function Home() {
     }
   };
 
+  const handleLogin = () => {
+    setIsAuthenticated(!isAuthenticated);
+  };
+
   const handleCreateToken = async () => {
+    if (!factoryContract) {
+      alert("請先連接錢包");
+      return;
+    }
+    
+    if (!tokenName || !tokenSymbol || !propertyName || !initialSupply) {
+      alert("請填寫所有欄位");
+      return;
+    }
+    
     setIsCreatingToken(true);
     
     try {
@@ -179,29 +284,21 @@ export default function Home() {
         initialSupply
       );
       
+      alert("交易已提交，等待確認...");
       console.log("Transaction hash:", tx.hash);
       
       // 等待交易確認
       const receipt = await tx.wait();
       console.log("Transaction confirmed:", receipt);
       
-      const propertyCreatedEvents = receipt.logs
-        .filter(log => {
-          try {
-            // 嘗試解析日誌，如果成功並且是 PropertyCreated 事件，則保留
-            const parsedLog = factoryContract.interface.parseLog(log);
-            return parsedLog && parsedLog.name === 'PropertyCreated';
-          } catch (e) {
-            // 如果解析失敗，則不是我們要找的事件
-            return false;
-          }
-        })
-        .map(log => factoryContract.interface.parseLog(log));
+      // 查找創建事件
+      const propertyCreatedEvent = receipt.logs
+        .filter(log => log.topics[0] === factoryContract.interface.getEvent('PropertyCreated').fragment.topicHash)
+        .map(log => factoryContract.interface.parseLog({ topics: log.topics, data: log.data }))
+        .find(event => event?.name === 'PropertyCreated');
       
-      if (propertyCreatedEvents.length > 0) {
-        const propertyCreatedEvent = propertyCreatedEvents[0];
-        const createdPropertyName = propertyCreatedEvent.args[0];
-        const createdTokenAddress = propertyCreatedEvent.args[1];
+      if (propertyCreatedEvent) {
+        const { 0: createdPropertyName, 1: createdTokenAddress } = propertyCreatedEvent.args;
         
         // 設置最新創建的代幣
         setLastCreatedToken({
@@ -222,9 +319,6 @@ export default function Home() {
         
         // 重新獲取代幣列表
         await fetchCreatedTokens();
-      } else {
-        console.error("找不到 PropertyCreated 事件");
-        alert("代幣似乎已創建，但無法找到確認事件，請重新整理頁面查看");
       }
     } catch (error) {
       console.error("Error creating property token:", error);
@@ -252,6 +346,65 @@ export default function Home() {
 
   return (
     <div className="home-container">
+      <section className="hero-section">
+        <div className="hero-content">
+          <h1>房地產代幣化投資平台</h1>
+          <p className="hero-subtitle">
+            透過區塊鏈技術，以小額投資方式參與高價值房地產市場
+          </p>
+          <div className="hero-buttons">
+            <button className="primary-button" onClick={handleStartInvesting}>
+              立即開始投資
+            </button>
+            {!isAuthenticated && (
+              <button 
+                className="secondary-button outline" 
+                onClick={() => navigate('/learn-more')}
+              >
+                了解更多
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="wallet-connect-container">
+          <button 
+            className={`wallet-button ${walletConnected ? 'connected' : ''}`} 
+            onClick={handleConnectWallet}
+          >
+            {walletConnected ? '錢包已連接' : '連接錢包'}
+          </button>
+          <button 
+            className={`auth-button ${isAuthenticated ? 'authenticated' : ''}`} 
+            onClick={handleLogin}
+          >
+            {isAuthenticated ? '已登入' : '登入/註冊'}
+          </button>
+        </div>
+      </section>
+
+      <section className="stats-section">
+        <div className="section-header">
+          <h2>平台數據</h2>
+        </div>
+        <div className="stats-grid">
+          <div className="stat-card">
+            <h3>總投資額</h3>
+            <p className="stat-value">{formatCurrency(platformStats.totalInvestment)}</p>
+          </div>
+          <div className="stat-card">
+            <h3>註冊用戶</h3>
+            <p className="stat-value">{platformStats.totalUsers}</p>
+          </div>
+          <div className="stat-card">
+            <h3>完成交易</h3>
+            <p className="stat-value">{platformStats.completedTransactions}</p>
+          </div>
+          <div className="stat-card">
+            <h3>上線房產</h3>
+            <p className="stat-value">{platformStats.totalProperties}</p>
+          </div>
+        </div>
+      </section>
 
       {/* 新增房地產表單區塊 */}
       <section className="create-property-section">
@@ -325,6 +478,65 @@ export default function Home() {
           </div>
         </section>
       )}
+
+      <section className="featured-properties">
+        <div className="section-header">
+          <h2>精選房產項目</h2>
+          {featuredProperties.length > 0 && (
+            <p className="section-description">探索我們精心挑選的高品質房地產投資機會</p>
+          )}
+        </div>
+        
+        {featuredProperties.length > 0 ? (
+          <>
+            <div className="property-grid">
+              {featuredProperties.map(property => (
+                <PropertyCard key={property.id} property={property} />
+              ))}
+            </div>
+            <div className="view-all-container">
+              <button 
+                className="secondary-button" 
+                onClick={handleViewAllProperties}
+              >
+                查看全部房產
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="no-properties">
+            <p>目前沒有可用的房產項目，請稍後再查看</p>
+          </div>
+        )}
+      </section>
+
+      <section className="how-it-works">
+        <div className="section-header">
+          <h2>如何投資房地產代幣</h2>
+        </div>
+        <div className="steps-container">
+          <div className="step-card">
+            <div className="step-number">1</div>
+            <h3>註冊帳戶</h3>
+            <p>完成身份驗證，連接數位錢包</p>
+          </div>
+          <div className="step-card">
+            <div className="step-number">2</div>
+            <h3>選擇房產</h3>
+            <p>瀏覽房產清單，查看詳細資訊</p>
+          </div>
+          <div className="step-card">
+            <div className="step-number">3</div>
+            <h3>購買代幣</h3>
+            <p>決定投資金額，購買房產代幣</p>
+          </div>
+          <div className="step-card">
+            <div className="step-number">4</div>
+            <h3>收取收益</h3>
+            <p>定期獲得租金收入，享受資產增值</p>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

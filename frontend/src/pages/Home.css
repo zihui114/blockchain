@@ -752,3 +752,184 @@
   .primary-button:active {
     transform: translateY(1px);
   }
+
+  /* 新增的樣式 */
+
+/* 創建代幣表單樣式 */
+.create-property-form {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.create-property-form input {
+  padding: 12px 16px;
+  border: 1px solid #dce0e5;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.3s;
+}
+
+.create-property-form input:focus {
+  border-color: #4a8cff;
+  outline: none;
+}
+
+.create-property-form button {
+  grid-column: span 2;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.create-property-form button:hover {
+  background-color: #3d9140;
+}
+
+.create-property-form button:disabled {
+  background-color: #a5d6a7;
+  cursor: not-allowed;
+}
+
+.create-property-form button.loading {
+  position: relative;
+  padding-left: 40px;
+}
+
+.create-property-form button.loading:before {
+  content: "";
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  margin-top: -8px;
+  border: 2px solid white;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 最後創建的代幣區塊樣式 */
+.last-created-token-section {
+  background-color: #e8f5e9;
+  border-radius: 8px;
+  padding: 24px;
+  margin: 24px 0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.token-success-message {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+  background-color: white;
+  padding: 16px;
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.success-icon {
+  background-color: #4caf50;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 16px;
+  font-size: 18px;
+}
+
+/* 創建的代幣卡片樣式 */
+.created-token-card {
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  transition: transform 0.3s, box-shadow 0.3s;
+  display: flex;
+  flex-direction: column;
+}
+
+.created-token-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.created-token-card h3 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  color: #333;
+  font-size: 18px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: a0px;
+}
+
+.token-details p {
+  margin: 8px 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.token-details strong {
+  color: #555;
+}
+
+.address-link {
+  color: #4a8cff;
+  text-decoration: none;
+  font-family: monospace;
+  background-color: #f0f4f8;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 13px;
+  margin-left: 4px;
+}
+
+.address-link:hover {
+  text-decoration: underline;
+}
+
+/* 創建的代幣列表樣式 */
+.created-tokens-section {
+  margin: 24px 0;
+}
+
+.created-tokens-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+/* 響應式調整 */
+@media (max-width: 768px) {
+  .create-property-form {
+    grid-template-columns: 1fr;
+  }
+  
+  .create-property-form button {
+    grid-column: span 1;
+  }
+  
+  .created-tokens-grid {
+    grid-template-columns: 1fr;
+  }
+}
