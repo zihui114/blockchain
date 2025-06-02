@@ -3,6 +3,7 @@ import Navbar from './components/NavBar';
 import Home from './pages/Home';
 import MyAssets from './pages/MyAssets';
 import Transactions from './pages/Transactions';
+import MarketPlace from './pages/MarketPlace';
 // import WhitelistBlacklist from './pages/WhitelistBlacklist';
 import './App.css';
 
@@ -16,7 +17,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/my-assets" element={<MyAssets />} />
-            <Route path="/transactions" element={<Transactions />} />
+            <Route path="/transactions" element={<MarketPlace />} />
             {/* <Route path="/lists" element={<WhitelistBlacklist />} /> */}
           </Routes>
         </main>

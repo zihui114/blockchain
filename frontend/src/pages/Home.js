@@ -4,7 +4,7 @@ import './Home.css';
 import { ethers } from 'ethers';
 import factoryConfig from '../contracts/PropertyTokenFactory.json';
 
-// 新增一個顯示已創建代幣的組件
+// 顯示已創建的代幣的component
 const CreatedTokenCard = ({ token }) => {
   return (
     <div className="created-token-card">
@@ -28,12 +28,14 @@ const CreatedTokenCard = ({ token }) => {
   );
 };
 
+// 載入畫面的component
 const LoadingSpinner = () => (
   <div className="loading-spinner">
     <div className="spinner"></div>
     <p>載入中...</p>
   </div>
 );
+
 
 export default function Home() {
   const navigate = useNavigate();
@@ -51,6 +53,8 @@ export default function Home() {
   // 合約狀態
   const [factoryContract, setFactoryContract] = useState(null);
   const [isCreatingToken, setIsCreatingToken] = useState(false);
+
+  // 裡面存的是每一個已經創建的 token 的合約實例
   const [createdTokens, setCreatedTokens] = useState([]);
   
   // 新 Token 創建狀態
@@ -79,12 +83,14 @@ export default function Home() {
     
     try {
       const properties = await factoryContract.getAllProperties();
+      
+      // 只是把每個property改名，把 name 改成 propertyName
       const formattedTokens = properties.map(p => ({
         propertyName: p.name,
-        tokenAddress: p.tokenAddress
+        tokenAddress: p.tokenAddress  
       }));
       
-      // 對於新創建的代幣，我們需要獲取更多信息
+      // 對於所有已存在的代幣，我們需要進一步查詢詳細資訊
       const enrichedTokens = await Promise.all(
         formattedTokens.map(async (token) => {
           try {
@@ -97,6 +103,7 @@ export default function Home() {
                 "function totalSupply() view returns (uint256)",
                 "function decimals() view returns (uint8)"
               ],
+              // 選擇使用跟factoryContract一樣的signer，這邊定義在162行
               factoryContract.runner
             );
             
@@ -169,14 +176,52 @@ export default function Home() {
   };
 
   const handleCreateToken = async () => {
+    // 添加表單驗證
+    if (!tokenName.trim()) {
+      alert("請輸入代幣名稱");
+      return;
+    }
+    
+    if (!tokenSymbol.trim()) {
+      alert("請輸入代幣符號");
+      return;
+    }
+    
+    if (!propertyName.trim()) {
+      alert("請輸入房產名稱");
+      return;
+    }
+    
+    if (!initialSupply.trim()) {
+      alert("請輸入初始供應量");
+      return;
+    }
+    
+    // 檢查初始供應量是否為有效數字
+    const supplyNumber = parseFloat(initialSupply);
+    if (isNaN(supplyNumber) || supplyNumber <= 0) {
+      alert("初始供應量必須是大於 0 的數字");
+      return;
+    }
+    
+    const supplyInteger = ethers.parseUnits("1000", 18);
+
     setIsCreatingToken(true);
     
     try {
+      console.log("創建代幣參數:", {
+        tokenName,
+        tokenSymbol,
+        propertyName,
+        initialSupply: supplyInteger,
+        originalInput: initialSupply
+      });
+      
       const tx = await factoryContract.createPropertyToken(
         tokenName,
         tokenSymbol,
         propertyName,
-        initialSupply
+        supplyInteger  // 使用轉換後的整數
       );
       
       console.log("Transaction hash:", tx.hash);
@@ -188,11 +233,9 @@ export default function Home() {
       const propertyCreatedEvents = receipt.logs
         .filter(log => {
           try {
-            // 嘗試解析日誌，如果成功並且是 PropertyCreated 事件，則保留
             const parsedLog = factoryContract.interface.parseLog(log);
             return parsedLog && parsedLog.name === 'PropertyCreated';
           } catch (e) {
-            // 如果解析失敗，則不是我們要找的事件
             return false;
           }
         })
@@ -203,13 +246,15 @@ export default function Home() {
         const createdPropertyName = propertyCreatedEvent.args[0];
         const createdTokenAddress = propertyCreatedEvent.args[1];
         
-        // 設置最新創建的代幣
+        // 驗證創建的代幣
+        await verifyTokenCreation(createdTokenAddress, supplyInteger);
+        
         setLastCreatedToken({
           propertyName: createdPropertyName,
           tokenAddress: createdTokenAddress,
           tokenName,
           tokenSymbol,
-          initialSupply
+          initialSupply: supplyInteger
         });
         
         // 重置表單
@@ -231,6 +276,48 @@ export default function Home() {
       alert(`創建代幣失敗: ${error.message}`);
     } finally {
       setIsCreatingToken(false);
+    }
+  };
+  
+  // 添加代幣創建驗證函數
+  const verifyTokenCreation = async (tokenAddress, expectedSupply) => {
+    try {
+      const tokenContract = new ethers.Contract(
+        tokenAddress,
+        [
+          "function totalSupply() view returns (uint256)",
+          "function decimals() view returns (uint8)",
+          "function balanceOf(address) view returns (uint256)"
+        ],
+        factoryContract.runner
+      );
+      
+      const totalSupply = await tokenContract.totalSupply();
+      const decimals = await tokenContract.decimals();
+      const userBalance = await tokenContract.balanceOf(await factoryContract.runner.getAddress());
+      
+      console.log("代幣驗證結果:", {
+        tokenAddress,
+        totalSupply: totalSupply.toString(),
+        totalSupplyFormatted: ethers.formatUnits(totalSupply, decimals),
+        expectedSupply,
+        decimals,
+        userBalance: userBalance.toString(),
+        userBalanceFormatted: ethers.formatUnits(userBalance, decimals)
+      });
+      
+      if (totalSupply === 0n) {
+        throw new Error("代幣創建失敗：總供應量為 0");
+      }
+      
+      if (userBalance === 0n) {
+        throw new Error("代幣創建失敗：用戶餘額為 0");
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("代幣驗證失敗:", error);
+      throw error;
     }
   };
 
