@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
+import { formatUnits } from "ethers";
 import { Link } from 'react-router-dom';
 import './MyAssets.css';
 
 // 導入合約配置
 import factoryConfig from '../contracts/PropertyTokenFactory.json';
 import tokenAbi from '../contracts/MyPropertyToken-abi.json';
+import marketplaceAbi from '../contracts/PropertyMarketplace.json';
+
+const MARKETPLACE_ADDRESS = marketplaceAbi.address;
 
 const MyAssets = () => {
   // 基本狀態變數
@@ -18,6 +22,75 @@ const MyAssets = () => {
   const [ethBalance, setEthBalance] = useState('0');
   const [totalValue, setTotalValue] = useState(0);
   
+  const [listingToken, setListingToken] = useState(null);
+  const [listingAmount, setListingAmount] = useState('');
+  const [listingPrice, setListingPrice] = useState('');
+  const [isListing, setIsListing] = useState(false);
+
+  // 創建賣單函數
+  const createListing = async () => {
+    if (!listingToken || !listingAmount || !listingPrice) {
+      alert("請完整輸入資料");
+      return;
+    }
+
+    try {
+      setIsListing(true);
+
+      const signer = await provider.getSigner();
+      const marketplaceContract = new ethers.Contract(MARKETPLACE_ADDRESS, marketplaceAbi.abi, signer);
+      const tokenContract = new ethers.Contract(listingToken.tokenAddress, tokenAbi, signer);
+
+      const decimals = await tokenContract.decimals();
+      const amountInUnits = ethers.parseUnits(listingAmount.toString(), decimals);
+      const priceInWei = ethers.parseEther(listingPrice.toString(), 18);
+
+      // 檢查並處理授權
+      const allowance = await tokenContract.allowance(walletAddress, MARKETPLACE_ADDRESS);
+      if (allowance < amountInUnits) {
+        const approveTx = await tokenContract.approve(MARKETPLACE_ADDRESS, amountInUnits);
+        await approveTx.wait();
+      }
+
+      // 創建賣單
+      const tx = await marketplaceContract.createListing(
+        listingToken.tokenAddress,
+        amountInUnits,
+        priceInWei
+      );
+
+      console.log('amountInUnits', amountInUnits);
+      console.log('priceInWei', priceInWei);
+
+      await tx.wait();
+      alert("賣單建立成功！");
+      
+      // 重置表單
+      setListingToken(null);
+      setListingAmount('');
+      setListingPrice('');
+      refreshData();
+
+    } catch (err) {
+      console.error("建立賣單失敗", err);
+      
+      let errorMessage = "建立賣單失敗：";
+      if (err.message.includes("insufficient funds")) {
+        errorMessage += "ETH 餘額不足以支付 gas 費用";
+      } else if (err.message.includes("insufficient balance")) {
+        errorMessage += "代幣餘額不足";
+      } else if (err.message.includes("insufficient allowance")) {
+        errorMessage += "授權額度不足";
+      } else {
+        errorMessage += err.message;
+      }
+      
+      alert(errorMessage);
+    } finally {
+      setIsListing(false);
+    }
+  };
+
   // 連接錢包
   const connectWallet = async () => {
     try {
@@ -25,6 +98,7 @@ const MyAssets = () => {
       
       if (window.ethereum) {
         const provider = new ethers.BrowserProvider(window.ethereum);
+        
         await provider.send("eth_requestAccounts", []);
         const signer = await provider.getSigner();
         const address = await signer.getAddress();
@@ -44,6 +118,7 @@ const MyAssets = () => {
         // 監聽錢包事件
         window.ethereum.on('accountsChanged', handleAccountsChanged);
         window.ethereum.on('chainChanged', () => window.location.reload());
+        
       } else {
         alert("請安裝 MetaMask 或其他 Web3 錢包擴充功能");
       }
@@ -88,7 +163,6 @@ const MyAssets = () => {
       
       // 獲取所有房產代幣
       const properties = await factoryContract.getAllProperties();
-      console.log("從工廠合約獲取的房產:", properties);
       
       // 查詢每個代幣的餘額和細節
       const tokenPromises = properties.map(async (property) => {
@@ -96,29 +170,26 @@ const MyAssets = () => {
         const propertyName = property.name;
         
         try {
-          // 使用標準 ERC20 介面創建合約實例
-          const tokenContract = new ethers.Contract(
-            tokenAddress,
-            tokenAbi,
-            provider
-          );
+          const tokenContract = new ethers.Contract(tokenAddress, tokenAbi, provider);
           
-          // 獲取代幣詳情
-          const [name, symbol, balance, decimals] = await Promise.all([
+          const [name, symbol, balance, decimals, totalSupply] = await Promise.all([
             tokenContract.name(),
             tokenContract.symbol(),
             tokenContract.balanceOf(walletAddress),
-            tokenContract.decimals()
+            tokenContract.decimals(),
+            tokenContract.totalSupply()
           ]);
+
+          if (totalSupply === 0n) {
+            return null;
+          }
           
-          // 獲取物業信息
           const metadata = getPropertyMetadata(propertyName);
-          
-          // 格式化餘額
           const formattedBalance = parseFloat(ethers.formatUnits(balance, decimals));
-          
-          // 估算價值：使用簡單的默認值
-          const estimatedValue = formattedBalance * 0.01 * 30000; // 假設 1 份 = 0.01 ETH = 30000 TWD
+          const estimatedValue = formattedBalance * 0.01 * 30000;
+          const formattedTotalSupply = formatUnits(totalSupply, decimals);
+          console.log('totalSupply', totalSupply)
+          console.log('formattedTotalSupply', formattedTotalSupply);
           
           return {
             id: tokenAddress,
@@ -130,7 +201,8 @@ const MyAssets = () => {
             location: metadata.location,
             type: metadata.type,
             image: metadata.image,
-            decimals: decimals
+            decimals: decimals,
+            totalSupply: formattedTotalSupply
           };
         } catch (error) {
           console.error(`獲取代幣詳情失敗 ${tokenAddress}:`, error);
@@ -138,13 +210,10 @@ const MyAssets = () => {
         }
       });
       
-      // 等待所有查詢完成並過濾掉空值
       const tokenResults = (await Promise.all(tokenPromises)).filter(token => token !== null);
-      
-      // 計算總資產價值
+      console.log('tokenResults', tokenResults);
       const total = tokenResults.reduce((sum, token) => sum + token.value, 0);
       setTotalValue(total);
-      
       setMyTokens(tokenResults);
     } catch (error) {
       console.error("獲取代幣資產錯誤", error);
@@ -153,9 +222,8 @@ const MyAssets = () => {
     }
   };
 
-  // 簡化的物業元數據獲取函數
+  // 物業元數據獲取函數
   const getPropertyMetadata = (propertyName) => {
-    // 預設元數據映射
     const metadata = {
       "Taipei Token": { 
         location: "信義區",
@@ -172,7 +240,6 @@ const MyAssets = () => {
         type: "商業",
         image: "/api/placeholder/300/200"
       },
-      // 返回默認值
       "default": {
         location: "未知區域",
         type: "未知類型",
@@ -195,19 +262,17 @@ const MyAssets = () => {
       refreshData();
     }
   }, [walletConnected]);
-
+  
   return (
     <div className="assets-container">
       <div className="assets-header">
         <h2 className="assets-title">我的房地產資產</h2>
         
         {walletConnected ? (
-          <div className="header-buttons">
-            <button className="refresh-button" onClick={refreshData} disabled={isLoading}>
-              <span className="refresh-icon">↻</span>
-              重新整理
-            </button>
-          </div>
+          <button className="refresh-button" onClick={refreshData} disabled={isLoading}>
+            <span className="refresh-icon">↻</span>
+            重新整理
+          </button>
         ) : (
           <button className="connect-wallet-button" onClick={connectWallet} disabled={isLoading}>
             {isLoading ? '連接中...' : '連接錢包'}
@@ -225,7 +290,6 @@ const MyAssets = () => {
           <p>載入資產中...</p>
         </div>
       ) : (
-        // 顯示資產
         <>
           <div className="wallet-summary">
             <div className="wallet-info">
@@ -253,6 +317,7 @@ const MyAssets = () => {
                     <th>類型</th>
                     <th>持有份數</th>
                     <th>估值 (NT$)</th>
+                    <th>總供應量</th>
                     <th>操作</th>
                   </tr>
                 </thead>
@@ -272,13 +337,19 @@ const MyAssets = () => {
                       <td>{item.type}</td>
                       <td>{item.amount.toFixed(4)} {item.symbol}</td>
                       <td>{item.value.toLocaleString(undefined, {maximumFractionDigits: 0})} TWD</td>
+                      <td>{parseFloat(item.totalSupply).toLocaleString()}</td>
                       <td>
                         <div className="action-buttons">
                           <button 
-                            className="action-button view-button"
-                            onClick={() => window.open(`https://sepolia.etherscan.io/token/${item.tokenAddress}`, '_blank')}
+                            className="action-button sell-button"
+                            onClick={() => {
+                              setListingToken(item);
+                              setListingAmount('');
+                              setListingPrice('');
+                            }}
+                            disabled={item.amount <= 0}
                           >
-                            查看
+                            出售
                           </button>
                         </div>
                       </td>
@@ -298,6 +369,83 @@ const MyAssets = () => {
             </div>
           )}
         </>
+      )}
+      
+      {/* 出售彈窗 */}
+      {listingToken && (
+        <div className="listing-modal">
+          <div className="modal-content">
+            <h3>出售 {listingToken.property}</h3>
+            
+            <div className="input-group">
+              <label>出售數量:</label>
+              <input 
+                type="number" 
+                placeholder="出售數量"
+                value={listingAmount}
+                onChange={(e) => setListingAmount(e.target.value)}
+                max={listingToken.amount}
+                step="0.0001"
+                min="0"
+              />
+              <small>最大可售: {listingToken.amount.toFixed(6)}</small>
+            </div>
+            
+            <div className="input-group">
+              <label>每份價格 (ETH):</label>
+              <input 
+                type="number" 
+                placeholder="每份價格 (ETH)"
+                value={listingPrice}
+                onChange={(e) => setListingPrice(e.target.value)}
+                step="0.001"
+                min="0"
+              />
+            </div>
+            
+            {listingAmount && listingPrice && (
+              <div className="calculation">
+                <div className="calc-row">
+                  <span>出售數量:</span>
+                  <span>{parseFloat(listingAmount).toFixed(6)} {listingToken.symbol}</span>
+                </div>
+                <div className="calc-row">
+                  <span>單價:</span>
+                  <span>{parseFloat(listingPrice).toFixed(6)} ETH</span>
+                </div>
+                <div className="calc-row total">
+                  <span><strong>總價:</strong></span>
+                  <span><strong>{(parseFloat(listingAmount) * parseFloat(listingPrice)).toFixed(6)} ETH</strong></span>
+                </div>
+              </div>
+            )}
+            
+            <div className="modal-buttons">
+              <button 
+                onClick={() => setListingToken(null)} 
+                className="cancel-button"
+              >
+                取消
+              </button>
+              <button 
+                onClick={createListing} 
+                className="confirm-button"
+                disabled={isListing || !listingAmount || !listingPrice || parseFloat(listingAmount) <= 0 || parseFloat(listingPrice) <= 0}
+              >
+                {isListing ? "處理中..." : "建立賣單"}
+              </button>
+            </div>
+            
+            {isListing && (
+              <div className="listing-progress">
+                <div className="progress-bar">
+                  <div className="progress-fill"></div>
+                </div>
+                <p>正在處理交易，請稍候...</p>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
