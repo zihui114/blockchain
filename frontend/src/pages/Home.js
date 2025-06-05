@@ -83,8 +83,7 @@ export default function Home() {
     
     try {
       const properties = await factoryContract.getAllProperties();
-      
-      // 只是把每個property改名，把 name 改成 propertyName
+      //只是把每個property改名，把 name 改成 propertyName
       const formattedTokens = properties.map(p => ({
         propertyName: p.name,
         tokenAddress: p.tokenAddress  
@@ -94,6 +93,7 @@ export default function Home() {
       const enrichedTokens = await Promise.all(
         formattedTokens.map(async (token) => {
           try {
+            //幫每個 token 建立一個合約的物件
             const tokenContract = new ethers.Contract(
               token.tokenAddress,
               // 使用簡化版的 ABI，只包含我們需要的函數
@@ -150,18 +150,19 @@ export default function Home() {
     }
   }, [factoryContract]);
 
+  //1. 處理連接錢包的合約
   const handleConnectWallet = async () => {
     try {
       if (window.ethereum) {
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        await provider.send("eth_requestAccounts", []);
-        const signer = await provider.getSigner();
+        const provider = new ethers.BrowserProvider(window.ethereum);//連接瀏覽器 metamask 的provider
+        await provider.send("eth_requestAccounts", []);//provider送請求給 metaMask 要求連接帳戶
+        const signer = await provider.getSigner();//provider 的 signer 用來讀寫鏈上資料的物件
         setWalletConnected(true);
         
         // 設置合約實例
-        const contractAddress = factoryConfig.address;
-        const contractABI = factoryConfig.abi;
-        const contractInstance = new ethers.Contract(contractAddress, contractABI, signer);
+        const contractAddress = factoryConfig.address;//拿 factory 的合約地址
+        const contractABI = factoryConfig.abi;//拿 abi 物件
+        const contractInstance = new ethers.Contract(contractAddress, contractABI, signer);//建立新的合約物件
         setFactoryContract(contractInstance);
         
         // 獲取已創建的代幣
@@ -174,7 +175,7 @@ export default function Home() {
       setWalletConnected(false);
     }
   };
-
+//創建代幣
   const handleCreateToken = async () => {
     // 添加表單驗證
     if (!tokenName.trim()) {
@@ -204,20 +205,12 @@ export default function Home() {
       return;
     }
     
-    const supplyInteger = ethers.parseUnits("1000", 18);
+    const supplyInteger = ethers.parseUnits(supplyNumber.toString(), 18);
 
     setIsCreatingToken(true);
-    
+    //這裡是想辦法拿到 token 的地址
     try {
-      console.log("創建代幣參數:", {
-        tokenName,
-        tokenSymbol,
-        propertyName,
-        initialSupply: supplyInteger,
-        originalInput: initialSupply
-      });
-      
-      const tx = await factoryContract.createPropertyToken(
+      const tx = await factoryContract.createPropertyToken(//直接調用合約裡寫好的創建代幣的好數就好ㄌ
         tokenName,
         tokenSymbol,
         propertyName,
@@ -226,7 +219,7 @@ export default function Home() {
       
       console.log("Transaction hash:", tx.hash);
       
-      // 等待交易確認
+      // 等待交易確認。等待礦工幫我們確認交易
       const receipt = await tx.wait();
       console.log("Transaction confirmed:", receipt);
       

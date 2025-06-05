@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+
 import { ethers } from 'ethers';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+
+// import { Link } from 'react-router-dom';
 import './Marketplace.css';
 
 // 導入合約配置
@@ -16,6 +18,10 @@ const Marketplace = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [provider, setProvider] = useState(null);
   const [buyingListing, setBuyingListing] = useState(null);
+  const [groupedListings, setGroupedListings] = useState({});
+  const [openSymbol, setOpenSymbol] = useState(null);
+  const [selectedListing, setSelectedListing] = useState(null);
+
 
   // 連接錢包
   const connectWallet = async () => {
@@ -36,8 +42,19 @@ const Marketplace = () => {
       alert(`連接錢包失敗: ${error.message}`);
     }
   };
+  const groupListingsByTokenSymbol = (listings) => {
+    return listings.reduce((acc, listing) => {
+      const symbol = listing.tokenSymbol;
+      if (!acc[symbol]) {
+        acc[symbol] = [];
+      }
+      acc[symbol].push(listing);
+      return acc;
+    }, {});
+  };
 
-  // 獲取所有賣單
+
+    // 獲取所有賣單
   const fetchListings = async () => {
     if (!provider) return;
     
@@ -45,79 +62,38 @@ const Marketplace = () => {
       setIsLoading(true);
       const marketplaceContract = new ethers.Contract(MARKETPLACE_ADDRESS, marketplaceAbi.abi, provider);
       
-      console.log("正在獲取活躍賣單...");
       const [listingIds, sellers, tokenAddresses, amounts, prices] = await marketplaceContract.getActiveListings();
-      
-      console.log("找到", listingIds.length, "個活躍賣單");
-      console.log("賣單 IDs:", listingIds.map(id => id.toString()));
-      console.log("代幣地址:", tokenAddresses);
       
       const listingPromises = listingIds.map(async (listingId, index) => {
         const tokenAddress = tokenAddresses[index];
-        console.log(`處理賣單 ${listingId.toString()}, 代幣地址: ${tokenAddress}`);
+                  
+        const tokenContract = new ethers.Contract(tokenAddress, tokenAbi, provider);
+        const decimals = await tokenContract.decimals();
+        const tokenName = await tokenContract.name();
+        const tokenSymbol = await tokenContract.symbol();
+
+        const amount = parseFloat(ethers.formatUnits(amounts[index], decimals));
+        const pricePerToken = parseFloat(ethers.formatEther(prices[index]));
         
-        try {
-          // 先檢查地址是否有合約代碼
-          const code = await provider.getCode(tokenAddress);
-          if (code === "0x") {
-            console.error(`代幣地址 ${tokenAddress} 沒有部署合約`);
-            return null;
-          }
-          
-          const tokenContract = new ethers.Contract(tokenAddress, tokenAbi, provider);
-          
-          // 分別嘗試每個函數調用，以便更好地調試
-          let tokenName, tokenSymbol, decimals;
-          
-          try {
-            tokenName = await tokenContract.name();
-            console.log(`代幣名稱: ${tokenName}`);
-          } catch (error) {
-            console.error(`無法獲取代幣名稱 ${tokenAddress}:`, error.message);
-            tokenName = "Unknown Token";
-          }
-          
-          try {
-            tokenSymbol = await tokenContract.symbol();
-            console.log(`代幣符號: ${tokenSymbol}`);
-          } catch (error) {
-            console.error(`無法獲取代幣符號 ${tokenAddress}:`, error.message);
-            tokenSymbol = "UNK";
-          }
-          
-          try {
-            decimals = await tokenContract.decimals();
-            console.log(`代幣小數位數: ${decimals}`);
-          } catch (error) {
-            console.error(`無法獲取代幣小數位數 ${tokenAddress}:`, error.message);
-            decimals = 18; // 默認值
-          }
-          
-          const amount = parseFloat(ethers.formatUnits(amounts[index], decimals));
-          const pricePerToken = parseFloat(ethers.formatEther(prices[index]));
-          
-          return {
-            listingId: listingId.toString(),
-            tokenAddress: tokenAddress,
-            tokenName,
-            tokenSymbol,
-            seller: sellers[index],
-            amount,
-            pricePerToken,
-            totalPrice: pricePerToken * amount,
-            decimals,
-            originalAmount: amounts[index],
-            originalPrice: prices[index]
-          };
-        } catch (error) {
-          console.error(`獲取賣單 ${listingId} 失敗:`, error);
-          return null;
-        }
+        return {
+          listingId: listingId.toString(),
+          tokenAddress: tokenAddress,
+          tokenName,
+          tokenSymbol,
+          seller: sellers[index],
+          amount,
+          pricePerToken,
+          totalPrice: pricePerToken * amount,
+          decimals,
+          originalAmount: amounts[index],
+          originalPrice: prices[index]
+        };
       });
-      
-      const results = (await Promise.all(listingPromises)).filter(listing => listing !== null);
-      console.log("成功處理的賣單:", results.length);
-      setListings(results);
+      const listingResults = await Promise.all(listingPromises);
+      console.log('讀取到的賣單：', listingResults)
+      setListings(listingResults);
+      setGroupedListings(groupListingsByTokenSymbol(listingResults));//加這個
+
     } catch (error) {
       console.error("獲取賣單失敗", error);
       alert("獲取賣單失敗，請檢查網絡連接和合約地址");
@@ -269,43 +245,71 @@ const Marketplace = () => {
           <button onClick={connectWallet}>連接錢包</button>
         )}
       </div>
-
       {!walletConnected ? (
-        <div className="connect-prompt">
-          <p>請連接錢包以查看市場</p>
-        </div>
-      ) : isLoading ? (
-        <div className="loading">載入中...</div>
-      ) : (
-        <div className="listings-grid">
-          {listings.length > 0 ? (
-            listings.map((listing) => (
-              <div key={listing.listingId} className="listing-card">
-                <h3>{listing.tokenName}</h3>
-                <div className="listing-info">
-                  <p><strong>數量:</strong> {listing.amount.toFixed(4)} {listing.tokenSymbol}</p>
-                  <p><strong>單價:</strong> {listing.pricePerToken.toFixed(6)} ETH</p>
-                  <p><strong>總價:</strong> {listing.totalPrice.toFixed(6)} ETH</p>
-                  <p><strong>賣家:</strong> {`${listing.seller.slice(0, 6)}...${listing.seller.slice(-4)}`}</p>
-                </div>
-                <button
-                  className="buy-button"
-                  onClick={() => buyTokens(listing)}
-                  disabled={buyingListing === listing.listingId || listing.seller.toLowerCase() === walletAddress.toLowerCase()}
-                >
-                  {buyingListing === listing.listingId ? '購買中...' : 
-                   listing.seller.toLowerCase() === walletAddress.toLowerCase() ? '自己的賣單' : '購買'}
-                </button>
-              </div>
-            ))
-          ) : (
-            <div className="no-listings">
-              <p>目前沒有任何賣單</p>
-              <Link to="/my-assets">前往我的資產</Link>
+      <div className="connect-prompt">
+        <p>請連接錢包以查看市場</p>
+      </div>
+    ) : isLoading ? (
+      <div className="loading">載入中...</div>
+    ) : selectedListing ? (
+      // ✅ 詳細頁面（不變）
+      <div className="listing-detail">
+        <h3>賣單詳細資訊</h3>
+        <p><strong>代幣名稱:</strong> {selectedListing.tokenName}</p>
+        <p><strong>數量:</strong> {selectedListing.amount} {selectedListing.tokenSymbol}</p>
+        <p><strong>單價:</strong> {selectedListing.pricePerToken} ETH</p>
+        <p><strong>總價:</strong> {selectedListing.totalPrice} ETH</p>
+        <p><strong>賣家地址:</strong> {selectedListing.seller}</p>
+        <button
+          className="buy-button"
+          onClick={() => buyTokens(selectedListing)}
+          disabled={buyingListing === selectedListing.listingId || selectedListing.seller.toLowerCase() === walletAddress.toLowerCase()}
+        >
+          {buyingListing === selectedListing.listingId ? '購買中...' :
+          selectedListing.seller.toLowerCase() === walletAddress.toLowerCase() ? '自己的賣單' : '購買'}
+        </button>
+        <button className="back-button" onClick={() => setSelectedListing(null)}>← 返回賣單列表</button>
+      </div>
+    ) : openSymbol ? (
+      // ✅ 已點開某個幣種，顯示該幣的所有賣單
+      <div className="token-listings">
+        <button className="back-button" onClick={() => setOpenSymbol(null)}>← 返回幣種列表</button>
+        <h3>{openSymbol} 的賣單</h3>
+        {groupedListings[openSymbol].map((listing) => (
+          <div
+            key={listing.listingId}
+            className="listing-card"
+            onClick={() => setSelectedListing(listing)}
+          >
+            <h4>{listing.tokenName}</h4>
+            <div className="listing-info">
+              <p><strong>數量:</strong> {listing.amount.toFixed(4)} {listing.tokenSymbol}</p>
+              <p><strong>單價:</strong> {listing.pricePerToken.toFixed(6)} ETH</p>
+              <p><strong>總價:</strong> {listing.totalPrice.toFixed(6)} ETH</p>
+              <p><strong>賣家:</strong> {`${listing.seller.slice(0, 6)}...${listing.seller.slice(-4)}`}</p>
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        ))}
+      </div>
+    ) : (
+      // ✅ 幣種總覽頁，只顯示 symbol 和賣單數
+      <div className="listings-grouped">
+        {Object.keys(groupedListings).map((symbol) => (
+          <div key={symbol} className="token-box">
+            <div
+              className="token-header"
+              onClick={() => setOpenSymbol(symbol)}
+              style={{ cursor: 'pointer', background: '#f5f5f5', padding: '10px', borderRadius: '8px', marginBottom: '10px' }}
+            >
+              <h3>{symbol}（{groupedListings[symbol].length} 筆賣單）</h3>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  
+
+      
     </div>
   );
 };

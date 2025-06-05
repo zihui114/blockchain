@@ -16,7 +16,7 @@ function Navbar() {
         <div className="navbar-links">
           <Link to="/" className="nav-link">首頁</Link>
           <Link to="/my-assets" className="nav-link">我的資產</Link>
-          <Link to="/transactions" className="nav-link">交易記錄</Link>
+          <Link to="/transactions" className="nav-link">交易</Link>
           <Link to="/lists" className="nav-link">黑白名單</Link>
         </div>
       </div>
