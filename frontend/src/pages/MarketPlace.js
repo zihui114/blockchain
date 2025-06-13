@@ -252,8 +252,9 @@ const Marketplace = () => {
     ) : isLoading ? (
       <div className="loading">載入中...</div>
     ) : selectedListing ? (
-      // ✅ 詳細頁面（不變）
+      
       <div className="listing-detail">
+        <button className="back-button" onClick={() => setSelectedListing(null)}>← 返回賣單列表</button>
         <h3>賣單詳細資訊</h3>
         <p><strong>代幣名稱:</strong> {selectedListing.tokenName}</p>
         <p><strong>數量:</strong> {selectedListing.amount} {selectedListing.tokenSymbol}</p>
@@ -268,38 +269,76 @@ const Marketplace = () => {
           {buyingListing === selectedListing.listingId ? '購買中...' :
           selectedListing.seller.toLowerCase() === walletAddress.toLowerCase() ? '自己的賣單' : '購買'}
         </button>
-        <button className="back-button" onClick={() => setSelectedListing(null)}>← 返回賣單列表</button>
       </div>
     ) : openSymbol ? (
-      // ✅ 已點開某個幣種，顯示該幣的所有賣單
-      <div className="token-listings">
-        <button className="back-button" onClick={() => setOpenSymbol(null)}>← 返回幣種列表</button>
-        <h3>{openSymbol} 的賣單</h3>
-        {groupedListings[openSymbol].map((listing) => (
-          <div
-            key={listing.listingId}
-            className="listing-card"
-            onClick={() => setSelectedListing(listing)}
-          >
-            <h4>{listing.tokenName}</h4>
-            <div className="listing-info">
-              <p><strong>數量:</strong> {listing.amount.toFixed(4)} {listing.tokenSymbol}</p>
-              <p><strong>單價:</strong> {listing.pricePerToken.toFixed(6)} ETH</p>
-              <p><strong>總價:</strong> {listing.totalPrice.toFixed(6)} ETH</p>
-              <p><strong>賣家:</strong> {`${listing.seller.slice(0, 6)}...${listing.seller.slice(-4)}`}</p>
-            </div>
-          </div>
-        ))}
-      </div>
+      //  已點開某個幣種，顯示該幣的所有賣單
+      // <div className="token-listings">
+      //   <button className="back-button" onClick={() => setOpenSymbol(null)}>← 返回幣種列表</button>
+      //   <h3>{openSymbol} 的賣單</h3>
+      //   <div className='listing-card-container'>
+      //   {groupedListings[openSymbol].map((listing) => (
+          
+      //       <div
+      //       key={listing.listingId}
+      //       className="listing-card"
+      //       onClick={() => setSelectedListing(listing)}
+      //       >
+      //         <h4>{listing.tokenName}</h4>
+      //         <div className="listing-info">
+      //           <p><strong>數量:</strong> {listing.amount.toFixed(4)} {listing.tokenSymbol}</p>
+      //           <p><strong>單價:</strong> {listing.pricePerToken.toFixed(6)} ETH</p>
+      //           <p><strong>總價:</strong> {listing.totalPrice.toFixed(6)} ETH</p>
+      //           <p><strong>賣家:</strong> {`${listing.seller.slice(0, 6)}...${listing.seller.slice(-4)}`}</p>
+      //         </div>
+      //       </div>
+      //   ))}
+      //   </div>
+      // </div>
+      <div className="table-container">
+  <button className="back-button" onClick={() => setOpenSymbol(null)}>← 返回幣種列表</button>
+  <h3>{openSymbol} 的賣單</h3>
+  
+  <table className="assets-table">
+    <thead>
+      <tr>
+        <th>代幣名稱</th>
+        <th>數量</th>
+        <th>單價 (ETH)</th>
+        <th>總價 (ETH)</th>
+        <th>賣家</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      {groupedListings[openSymbol].map((listing) => (
+        <tr
+          key={listing.listingId}
+          className="table-row"
+          onClick={() => setSelectedListing(listing)}
+        >
+          <td>{listing.tokenName}</td>
+          <td>{listing.amount.toFixed(4)} {listing.tokenSymbol}</td>
+          <td>{listing.pricePerToken.toFixed(6)}</td>
+          <td>{listing.totalPrice.toFixed(6)}</td>
+          <td>{`${listing.seller.slice(0, 6)}...${listing.seller.slice(-4)}`}</td>
+          <td>
+            <button className="action-button view-button">查看</button>
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+
     ) : (
       // ✅ 幣種總覽頁，只顯示 symbol 和賣單數
       <div className="listings-grouped">
         {Object.keys(groupedListings).map((symbol) => (
-          <div key={symbol} className="token-box">
+          <div key={symbol} className="token-box" onClick={() => setOpenSymbol(symbol)}>
             <div
               className="token-header"
-              onClick={() => setOpenSymbol(symbol)}
-              style={{ cursor: 'pointer', background: '#f5f5f5', padding: '10px', borderRadius: '8px', marginBottom: '10px' }}
+              
+              style={{ cursor: 'pointer', padding: '10px', borderRadius: '8px', marginBottom: '10px' }}
             >
               <h3>{symbol}（{groupedListings[symbol].length} 筆賣單）</h3>
             </div>
