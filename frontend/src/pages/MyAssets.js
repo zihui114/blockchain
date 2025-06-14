@@ -120,7 +120,7 @@ const MyAssets = () => {
       if (totalSupply === 0n) {
         return null;
       }
-      
+      // formatUnits -> 把最小單位轉換成我們可以看得懂的單位
       const formattedBalance = parseFloat(ethers.formatUnits(balance, decimals));
       const formattedTotalSupply = formatUnits(totalSupply, decimals);
       
@@ -338,8 +338,7 @@ const MyAssets = () => {
         </div>
       )}
     </div>
-  );
-  
+  );  
 };
 
 export default MyAssets;

@@ -27,27 +27,9 @@ const Marketplace = () => {
   const [groupedListings, setGroupedListings] = useState({});
   const [openSymbol, setOpenSymbol] = useState(null);
   const [selectedListing, setSelectedListing] = useState(null);
+  const [sortOrder, setSortOrder] = useState('asc'); // 或 'desc'
 
-
-  // 連接錢包
-  const connectWallet = async () => {
-    try {
-      if (window.ethereum) {
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        await provider.send("eth_requestAccounts", []);
-        const signer = await provider.getSigner();
-        const address = await signer.getAddress();
-        
-        setWalletConnected(true);
-        setWalletAddress(address);
-        setProvider(provider);
-      } else {
-        alert("請安裝 MetaMask");
-      }
-    } catch (error) {
-      alert(`連接錢包失敗: ${error.message}`);
-    }
-  };
+  // 按代幣符號分組賣單
   const groupListingsByTokenSymbol = (listings) => {
     return listings.reduce((acc, listing) => {
       const symbol = listing.tokenSymbol;

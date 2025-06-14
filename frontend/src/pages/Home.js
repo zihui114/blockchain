@@ -38,9 +38,6 @@ export default function Home() {
   const [isCreatingToken, setIsCreatingToken] = useState(false);
   const [createdTokens, setCreatedTokens] = useState([]);
   
-  // 新 Token 創建狀態
-  const [lastCreatedToken, setLastCreatedToken] = useState(null);
-
   //emoji
   const [emoji, setEmoji] = useState('');
 
@@ -53,12 +50,8 @@ export default function Home() {
       try {
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        setError(null);
       } catch (err) {
         console.error('Error fetching data:', err);
-        setError('無法加載數據，請稍後再試');
-      } finally {
-        setLoading(false);
       }
     };
 
@@ -183,7 +176,7 @@ export default function Home() {
   </div>
 
   <button 
-    onClick={walletConnected ? handleCreateToken : handleConnectWallet}
+    onClick={walletConnected ? handleCreateToken : connectWallet}
     disabled={isCreatingToken || !tokenSymbol}
     className={`create-token-btn ${isCreatingToken ? 'loading' : ''}`}
   >

@@ -5,10 +5,10 @@ import { getDAOContractByToken } from "./daoUtils";
 
 // 這是一個匯出的函式 voteForCandidate，會被前端呼叫來幫使用者投票。
 export const voteForCandidate = async (
-  tokenAddress: string, // 哪個代幣的 DAO（每個代幣都有對應一個 DAO 合約）
-  candidateAddress: string, // 使用者想投給哪個候選人的錢包地址
-  factoryContract: any, // 你前面連好的 Factory 合約，可以透過他的函式，「使用 tokenAddress 查出對應 DAO」
-  signer: any // 有權限發送交易的錢包對象（MetaMask 使用者）
+  tokenAddress, // 哪個代幣的 DAO（每個代幣都有對應一個 DAO 合約）
+  candidateAddress, // 使用者想投給哪個候選人的錢包地址
+  factoryContract, // 你前面連好的 Factory 合約，可以透過他的函式，「使用 tokenAddress 查出對應 DAO」
+  signer // 有權限發送交易的錢包對象（MetaMask 使用者）
 ) => {
   try {
     // 1. 根據代幣地址，找到對應的 DAO 合約，建立一個 DAO 合約 instance（此函式來自 /src/utils/daoUtils.ts）

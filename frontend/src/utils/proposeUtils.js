@@ -12,11 +12,11 @@ import { getDAOContractByToken } from "./daoUtils";
  */
  
 export const proposeCandidate = async (
-  tokenAddress: string,
-  factoryContract: any,
-  signer: any,
-  candidateAddress: string
-): Promise<boolean> => {
+  tokenAddress,
+  factoryContract,
+  signer,
+  candidateAddress
+) => {
   // 1. 根據代幣地址，找到對應的 DAO 合約，建立一個 DAO 合約 instance（此函式來自 /src/utils/daoUtils.ts）
   const daoContract = await getDAOContractByToken(tokenAddress, factoryContract, signer);
 
