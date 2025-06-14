@@ -752,22 +752,47 @@
   .primary-button:active {
     transform: translateY(1px);
   }
+/* 
+.emoji-section .EmojiPickerReact {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+  padding: 12px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.emoji-section .EmojiPickerReact .epr-header {
+  width: 100% !important;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+.emoji-section .EmojiPickerReact .epr-header input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100% !important;
+  box-sizing: border-box;
+} */
 
   /* 新增的樣式 */
 
-/* 創建代幣表單樣式 */
+
 .create-property-form {
   background-color: #f8f9fa;
   border-radius: 8px;
   padding: 24px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
-  margin-top: 16px;
+  max-width: 800px;
+  margin: 0 auto;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
 .create-property-form input {
+  width: 100%;
   padding: 12px 16px;
   border: 1px solid #dce0e5;
   border-radius: 6px;
@@ -779,9 +804,72 @@
   border-color: #4a8cff;
   outline: none;
 }
+.emoji-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.emoji-section .EmojiPickerReact {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+  padding: 12px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.create-token-btn {
+  padding: 10px 20px;
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  background-color: #45a049; /* indigo-600 */
+  color: white;
+  transition: background-color 0.2s ease;
+}
 
+.create-token-btn:hover:not(:disabled) {
+  background-color: #4CAF50; /* indigo-700 */
+}
+
+.create-token-btn:disabled {
+  background-color: #e0e0e0;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.create-token-btn.loading {
+  position: relative;
+  background-color: #4CAF50;
+  pointer-events: none;
+}
+
+.create-token-btn.loading::after {
+  content: '';
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  border: 2px solid white;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+
+@keyframes spin {
+  to {
+    transform: translateY(-50%) rotate(360deg);
+  }
+}
+
+
+
+/* 
 .create-property-form button {
-  grid-column: span 2;
   background-color: #4caf50;
   color: white;
   border: none;
@@ -819,6 +907,8 @@
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
+ */
+
 
 @keyframes spin {
   0% { transform: rotate(0deg); }

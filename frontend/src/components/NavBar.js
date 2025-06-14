@@ -8,7 +8,7 @@ function Navbar() {
       <div className="navbar-container">
         <div className="navbar-logo">
           <Link to="/">
-            <img src="/icon.png" alt="Logo" className="logo" />
+            <img src="/real.png" alt="Logo" className="logo" />
             <span>房地產代幣化平台</span>
           </Link>
         </div>

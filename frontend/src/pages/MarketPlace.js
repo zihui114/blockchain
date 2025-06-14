@@ -21,6 +21,7 @@ const Marketplace = () => {
   const [groupedListings, setGroupedListings] = useState({});
   const [openSymbol, setOpenSymbol] = useState(null);
   const [selectedListing, setSelectedListing] = useState(null);
+  const [sortOrder, setSortOrder] = useState('asc'); // 或 'desc'
 
 
   // 連接錢包
@@ -108,83 +109,9 @@ const Marketplace = () => {
       
       const signer = await provider.getSigner();
       const marketplaceContract = new ethers.Contract(MARKETPLACE_ADDRESS, marketplaceAbi.abi, signer);
-      
-      console.log('=================== 完整交易調試 ===================');
-      
-      // 1. 基本賣單資訊
-      console.log('📋 賣單基本資訊:');
-      console.log('  listingId:', listing.listingId);
-      console.log('  listingId type:', typeof listing.listingId);
-      console.log('  tokenAddress:', listing.tokenAddress);
-      console.log('  tokenName:', listing.tokenName);
-      console.log('  tokenSymbol:', listing.tokenSymbol);
-      console.log('  seller:', listing.seller);
-      console.log('  decimals:', listing.decimals);
-      
-      // 2. 原始數據詳細分析
-      console.log('🔢 原始合約數據:');
-      console.log('  originalAmount:', listing.originalAmount);
-      console.log('  originalAmount.toString():', listing.originalAmount.toString());
-      console.log('  originalAmount type:', typeof listing.originalAmount);
-      console.log('  originalPrice:', listing.originalPrice);
-      console.log('  originalPrice.toString():', listing.originalPrice.toString());
-      console.log('  originalPrice type:', typeof listing.originalPrice);
-      
-      // 3. 格式化顯示數據
-      console.log('💰 前端顯示數據:');
-      console.log('  amount (格式化):', listing.amount);
-      console.log('  pricePerToken (格式化):', listing.pricePerToken);
-      console.log('  totalPrice (格式化):', listing.totalPrice);
-      
-      // 4. 帳戶資訊
-      const userAddress = await signer.getAddress();
-      const balance = await provider.getBalance(userAddress);
-      console.log('👤 帳戶資訊:');
-      console.log('  用戶地址:', userAddress);
-      console.log('  帳戶餘額 (wei):', balance.toString());
-      console.log('  帳戶餘額 (ETH):', ethers.formatEther(balance));
-      
-      // 5. 各種計算方式的總價
-      console.log('🧮 各種總價計算:');
-      const calc1 = listing.originalAmount * listing.originalPrice / (10n ** 18n);
-      const calc2 = listing.originalAmount * listing.originalPrice / (10n ** 36n);
-      const calc3 = ethers.parseEther(listing.totalPrice.toString());
-      const calc4 = listing.originalAmount * listing.originalPrice;
-      
-      console.log('  方式1 (÷10^18):', calc1.toString(), 'wei =', ethers.formatEther(calc1), 'ETH');
-      console.log('  方式2 (÷10^36):', calc2.toString(), 'wei =', ethers.formatEther(calc2), 'ETH');
-      console.log('  方式3 (前端totalPrice):', calc3.toString(), 'wei =', ethers.formatEther(calc3), 'ETH');
-      console.log('  方式4 (直接相乘):', calc4.toString(), 'wei =', ethers.formatEther(calc4), 'ETH');
-      
-      // 6. 檢查合約狀態
-      console.log('📄 合約狀態檢查:');
-      try {
-        const contractListing = await marketplaceContract.listings(listing.listingId);
-        console.log('  合約中的賣單:', contractListing);
-        console.log('  合約中seller:', contractListing.seller);
-        console.log('  合約中amount:', contractListing.amount.toString());
-        console.log('  合約中pricePerToken:', contractListing.pricePerToken.toString());
-        console.log('  合約中isActive:', contractListing.isActive);
-      } catch (error) {
-        console.log('  無法讀取合約賣單:', error.message);
-      }
-      
       // 7. 交易參數最終確認
       const finalValue = listing.originalAmount * listing.originalPrice / (10n ** 18n);
-      console.log('🚀 最終交易參數:');
-      console.log('  參數1 - listingId:', listing.listingId);
-      console.log('  參數2 - amount:', listing.originalAmount.toString());
-      console.log('  參數3 - value:', finalValue.toString(), 'wei');
-      console.log('  參數3 - value (ETH):', ethers.formatEther(finalValue));
       
-      // 8. 餘額充足性檢查
-      console.log('💳 餘額檢查:');
-      console.log('  需要支付:', ethers.formatEther(finalValue), 'ETH');
-      console.log('  帳戶餘額:', ethers.formatEther(balance), 'ETH');
-      console.log('  餘額充足?', balance >= finalValue);
-      console.log('  差額:', ethers.formatEther(balance - finalValue), 'ETH');
-      
-      console.log('🔍 估算 Gas:');
       try {
         const gasEstimate = await marketplaceContract.purchaseTokens.estimateGas(
           listing.listingId,
@@ -198,8 +125,6 @@ const Marketplace = () => {
         console.log('  Gas 估算失敗:', gasError.message);
         console.log('  Gas 錯誤詳情:', gasError);
       }
-      console.log('================================================');
-
       const tx = await marketplaceContract.purchaseTokens(
         listing.listingId,
         listing.originalAmount,
@@ -226,6 +151,27 @@ const Marketplace = () => {
       setBuyingListing(null);
     }
   };
+  const handleSort = () => {
+    // 切換排序方向
+    const newOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+    setSortOrder(newOrder);
+  
+    // ② 只針對目前展開的幣種 (openSymbol) 做排序
+    if (!openSymbol) return;          // 尚未點進幣種時不用動作
+  
+    // ③ 依新方向排序該幣種的賣單 (用 pricePerToken)
+    const updatedGroup = [...groupedListings[openSymbol]].sort((a, b) =>
+      newOrder === 'asc'
+        ? a.pricePerToken - b.pricePerToken
+        : b.pricePerToken - a.pricePerToken
+    );
+  
+    // ④ 更新 groupedListings（其餘幣種陣列保持原樣）
+    setGroupedListings(prev => ({
+      ...prev,
+      [openSymbol]: updatedGroup,
+    }));
+  };
 
   useEffect(() => {
     if (walletConnected) {
@@ -233,6 +179,7 @@ const Marketplace = () => {
     }
   }, [walletConnected]);
 
+  
   return (
     <div className="marketplace-container">
       <div className="marketplace-header">
@@ -271,29 +218,6 @@ const Marketplace = () => {
         </button>
       </div>
     ) : openSymbol ? (
-      //  已點開某個幣種，顯示該幣的所有賣單
-      // <div className="token-listings">
-      //   <button className="back-button" onClick={() => setOpenSymbol(null)}>← 返回幣種列表</button>
-      //   <h3>{openSymbol} 的賣單</h3>
-      //   <div className='listing-card-container'>
-      //   {groupedListings[openSymbol].map((listing) => (
-          
-      //       <div
-      //       key={listing.listingId}
-      //       className="listing-card"
-      //       onClick={() => setSelectedListing(listing)}
-      //       >
-      //         <h4>{listing.tokenName}</h4>
-      //         <div className="listing-info">
-      //           <p><strong>數量:</strong> {listing.amount.toFixed(4)} {listing.tokenSymbol}</p>
-      //           <p><strong>單價:</strong> {listing.pricePerToken.toFixed(6)} ETH</p>
-      //           <p><strong>總價:</strong> {listing.totalPrice.toFixed(6)} ETH</p>
-      //           <p><strong>賣家:</strong> {`${listing.seller.slice(0, 6)}...${listing.seller.slice(-4)}`}</p>
-      //         </div>
-      //       </div>
-      //   ))}
-      //   </div>
-      // </div>
       <div className="table-container">
   <button className="back-button" onClick={() => setOpenSymbol(null)}>← 返回幣種列表</button>
   <h3>{openSymbol} 的賣單</h3>
@@ -303,7 +227,11 @@ const Marketplace = () => {
       <tr>
         <th>代幣名稱</th>
         <th>數量</th>
-        <th>單價 (ETH)</th>
+        <th>單價 (ETH)
+          <button onClick={handleSort} style={{ backgroundColor: '#F5F7FA', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+            {sortOrder === 'asc' ? '🔼' : '🔽'}
+          </button>
+        </th>
         <th>總價 (ETH)</th>
         <th>賣家</th>
         <th>操作</th>
