@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './Home.css';
 import { ethers } from 'ethers';
 import { useWalletConnection } from '../hooks/useWalletConnection';
-
+import EmojiPicker from 'emoji-picker-react';
 // 顯示已創建的代幣的component
 const CreatedTokenCard = ({ token }) => {
   return (
@@ -37,8 +37,37 @@ export default function Home() {
   const [initialSupply, setInitialSupply] = useState('');
   const [isCreatingToken, setIsCreatingToken] = useState(false);
   const [createdTokens, setCreatedTokens] = useState([]);
+  
+  // 新 Token 創建狀態
+  const [lastCreatedToken, setLastCreatedToken] = useState(null);
 
-  // 獲取已創建的代幣
+  //emoji
+  const [emoji, setEmoji] = useState('');
+
+  const handleEmojiClick = (emojiData) => {
+    setEmoji(prev => prev + emojiData.emoji);
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        setError('無法加載數據，請稍後再試');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+
+
+  // 新增一個獲取已創建代幣的函數
   const fetchCreatedTokens = async () => {
     if (!factoryContract) return;
     
@@ -124,42 +153,44 @@ export default function Home() {
           <h2>新增房地產項目</h2>
         </div>
         <div className="create-property-form">
-          <input 
-            type="text" 
-            placeholder="Token 名稱"
-            value={tokenName}
-            onChange={(e) => setTokenName(e.target.value)}
-            disabled={isCreatingToken}
-          />
-          <input 
-            type="text" 
-            placeholder="Token 符號"
-            value={tokenSymbol}
-            onChange={(e) => setTokenSymbol(e.target.value)}
-            disabled={isCreatingToken}
-          />
-          <input 
-            type="text" 
-            placeholder="房產名稱"
-            value={propertyName}
-            onChange={(e) => setPropertyName(e.target.value)}
-            disabled={isCreatingToken}
-          />
-          <input 
-            type="number" 
-            placeholder="初始供應量"
-            value={initialSupply}
-            onChange={(e) => setInitialSupply(e.target.value)}
-            disabled={isCreatingToken}
-          />
-          <button 
-            onClick={walletConnected ? handleCreateToken : connectWallet}
-            disabled={isCreatingToken}
-          >
-            {!walletConnected ? '請先連接錢包' : 
-              isCreatingToken ? '處理中...' : '創建代幣'}
-          </button>
-        </div>
+  <input 
+    type="text" 
+    placeholder="Token 名稱"
+    value={tokenName}
+    onChange={(e) => setTokenName(e.target.value)}
+    disabled={isCreatingToken}
+  />
+  <input 
+    type="text" 
+    placeholder="房產名稱"
+    value={propertyName}
+    onChange={(e) => setPropertyName(e.target.value)}
+    disabled={isCreatingToken}
+  />
+  <input 
+    type="number" 
+    placeholder="初始供應量"
+    value={initialSupply}
+    onChange={(e) => setInitialSupply(e.target.value)}
+    disabled={isCreatingToken}
+  />
+
+  {/* emoji 選擇區塊 */}
+  <div className="emoji-section">
+    <label>選擇一個 Emoji 作為代幣符號：</label>
+    <EmojiPicker onEmojiClick={(emojiData) => setTokenSymbol(emojiData.emoji)} />
+    {tokenSymbol && <div className="emoji-preview">你選擇的是：{tokenSymbol}</div>}
+  </div>
+
+  <button 
+    onClick={walletConnected ? handleCreateToken : handleConnectWallet}
+    disabled={isCreatingToken || !tokenSymbol}
+    className={`create-token-btn ${isCreatingToken ? 'loading' : ''}`}
+  >
+    {!walletConnected ? '請先連接錢包' : 
+      isCreatingToken ? '處理中...' : '創建代幣'}
+  </button>
+</div>
       </section>
 
       {/* 已創建的代幣列表 */}

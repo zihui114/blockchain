@@ -28,7 +28,26 @@ const Marketplace = () => {
   const [openSymbol, setOpenSymbol] = useState(null);
   const [selectedListing, setSelectedListing] = useState(null);
 
-  // 按代幣符號分組賣單
+
+  // 連接錢包
+  const connectWallet = async () => {
+    try {
+      if (window.ethereum) {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        const signer = await provider.getSigner();
+        const address = await signer.getAddress();
+        
+        setWalletConnected(true);
+        setWalletAddress(address);
+        setProvider(provider);
+      } else {
+        alert("請安裝 MetaMask");
+      }
+    } catch (error) {
+      alert(`連接錢包失敗: ${error.message}`);
+    }
+  };
   const groupListingsByTokenSymbol = (listings) => {
     return listings.reduce((acc, listing) => {
       const symbol = listing.tokenSymbol;
@@ -117,8 +136,28 @@ const Marketplace = () => {
       setBuyingListing(null);
     }
   };
+  const handleSort = () => {
+    // 切換排序方向
+    const newOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+    setSortOrder(newOrder);
+  
+    // ② 只針對目前展開的幣種 (openSymbol) 做排序
+    if (!openSymbol) return;          // 尚未點進幣種時不用動作
+  
+    // ③ 依新方向排序該幣種的賣單 (用 pricePerToken)
+    const updatedGroup = [...groupedListings[openSymbol]].sort((a, b) =>
+      newOrder === 'asc'
+        ? a.pricePerToken - b.pricePerToken
+        : b.pricePerToken - a.pricePerToken
+    );
+  
+    // ④ 更新 groupedListings（其餘幣種陣列保持原樣）
+    setGroupedListings(prev => ({
+      ...prev,
+      [openSymbol]: updatedGroup,
+    }));
+  };
 
-  // 當錢包連接狀態改變時重新獲取賣單
   useEffect(() => {
     if (walletConnected) {
       fetchListings();
@@ -179,7 +218,11 @@ const Marketplace = () => {
               <tr>
                 <th>代幣名稱</th>
                 <th>數量</th>
-                <th>單價 (ETH)</th>
+                <th>單價 (ETH)
+                  <button onClick={handleSort} style={{ backgroundColor: '#F5F7FA', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                    {sortOrder === 'asc' ? '🔼' : '🔽'}
+                  </button>
+                </th>
                 <th>總價 (ETH)</th>
                 <th>賣家</th>
                 <th>操作</th>
