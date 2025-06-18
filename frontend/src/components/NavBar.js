@@ -18,6 +18,7 @@ function Navbar() {
           <Link to="/my-assets" className="nav-link">我的資產</Link>
           <Link to="/transactions" className="nav-link">交易</Link>
           <Link to="/lists" className="nav-link">黑白名單</Link>
+          <Link to="/property-dao" className="nav-link">公共治理</Link>
         </div>
       </div>
     </nav>
