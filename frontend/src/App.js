@@ -5,6 +5,7 @@ import MyAssets from './pages/MyAssets';
 import Transactions from './pages/Transactions';
 import MarketPlace from './pages/MarketPlace';
 // import WhitelistBlacklist from './pages/WhitelistBlacklist';
+import PropertyDAO from './pages/PropertyDAO';
 import './App.css';
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
             <Route path="/my-assets" element={<MyAssets />} />
             <Route path="/transactions" element={<MarketPlace />} />
             {/* <Route path="/lists" element={<WhitelistBlacklist />} /> */}
+            <Route path="/property-dao" element={<PropertyDAO />} />
           </Routes>
         </main>
       </div>
