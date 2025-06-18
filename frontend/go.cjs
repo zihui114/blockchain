@@ -6,18 +6,18 @@ console.log("🚀 載入合約 ABI 和地址...\n");
 try {
   // ✅ 載入 ABI
   const factoryAbi =
-    require("../../blockchain-real-estate/out/PropertyTokenFactory.sol/PropertyTokenFactory.json").abi;
+    require("/Users/akiraeason/Desktop/blockchain/Solidity/real-estate/out/PropertyTokenFactory.sol/PropertyTokenFactory.json").abi;
   const tokenAbi =
-    require("../../blockchain-real-estate/out/MyPropertyToken.sol/MyPropertyToken.json").abi;
+    require("/Users/akiraeason/Desktop/blockchain/Solidity/real-estate/out/MyPropertyToken.sol/MyPropertyToken.json").abi;
   const daoAbi =
-    require("../../blockchain-real-estate/out/PropertyDAO.sol/PropertyDAO.json").abi;
+    require("/Users/akiraeason/Desktop/blockchain/Solidity/real-estate/out/PropertyDAO.sol/PropertyDAO.json").abi;
   const marketplaceAbi =
-    require("../../blockchain-real-estate/out/PropertyMarketPlace.sol/PropertyMarketplace.json").abi;
+    require("/Users/akiraeason/Desktop/blockchain/Solidity/real-estate/out/PropertyMarketPlace.sol/PropertyMarketplace.json").abi;
   const issueDaoAbi =
-    require("../../blockchain-real-estate/out/IssueDAO.sol/IssueDAO.json").abi; // ✅ 新增
+    require("/Users/akiraeason/Desktop/blockchain/Solidity/real-estate/out/IssueDAO.sol/IssueDAO.json").abi; // ✅ 新增
 
   // ✅ 載入部署記錄
-  const deployment = require("../../blockchain-real-estate/broadcast/DeployScript.s.sol/31337/run-latest.json");
+  const deployment = require("/Users/akiraeason/Desktop/blockchain/Solidity/real-estate/broadcast/DeployScript.s.sol/31337/run-latest.json");
 
   // ✅ 取得指定合約地址
   const getContractAddress = (contractName) => {
